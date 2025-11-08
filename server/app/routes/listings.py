@@ -79,13 +79,13 @@ def get_listings_by_filter():
             f"vehicle.make={make}&"
             f"vehicle.model={model}&"
             f"retailListing.state={state}&"
-            f"limit=20"
+            f"limit=5"
         )
 
         if budget:
-            url += f"&retailListing.price={budget}"
-        #if year:
-        #    url += f"&vehicle.year={year}"
+            url += f"&retailListing.price=0-{budget}"
+        if year:
+            url += f"&vehicle.year={year}"
 
         try:
             resp = requests.get(url, headers=headers, timeout=10)
