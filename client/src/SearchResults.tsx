@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Car, User, SlidersHorizontal } from "lucide-react";
+import { Car, User } from "lucide-react";
+import CarListings from "./CarListings";
 import "./SearchResults.css";
 
 const SearchResults: React.FC = () => {
@@ -14,10 +15,6 @@ const SearchResults: React.FC = () => {
           <span>CarInsight</span>
         </div>
         <div className="nav-actions">
-          <button className="filter-btn">
-            <SlidersHorizontal size={20} />
-            Filters
-          </button>
           {hasProfile && (
             <button className="profile-icon" onClick={() => navigate("/profile")}>
               <User size={24} />
@@ -26,21 +23,7 @@ const SearchResults: React.FC = () => {
         </div>
       </nav>
 
-      <div className="search-container">
-        <div className="search-header">
-          <h1>Find Your Perfect Car</h1>
-          <p>Showing results based on your preferences</p>
-        </div>
-
-        <div className="results-grid">
-          {/* Car listings will be populated here */}
-          <div className="empty-state">
-            <Car size={64} color="#9ca3af" />
-            <h2>Ready to show you cars!</h2>
-            <p>Car listings will appear here once integrated with the cars.com API</p>
-          </div>
-        </div>
-      </div>
+      <CarListings />
     </div>
   );
 };

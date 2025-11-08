@@ -39,3 +39,4 @@ export const carModels: Record<string, string[]> = {
   "Volkswagen": ["Jetta", "Passat", "Arteon", "Golf", "GTI", "ID.4", "Taos", "Tiguan", "Atlas"],
   "Volvo": ["S60", "S90", "V60", "V90", "XC40", "XC60", "XC90"]
 };
+
