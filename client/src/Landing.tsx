@@ -53,7 +53,7 @@ const Landing: React.FC = () => {
           className="cta"
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 200 }}
-          onClick={() => !hasProfile && navigate("/setup")}
+          onClick={() => navigate(hasProfile ? "/search" : "/setup")}
         >
           Start Your Search
         </motion.button>
