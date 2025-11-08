@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_cors import CORS
-#from .routes.products import products_bp
+from .routes.recommendation import recommendations_bp
 import os
 from dotenv import load_dotenv
 
@@ -20,7 +20,7 @@ def create_app():
     
     app.secret_key = os.getenv("SECRET_KEY")
 
-    #app.register_blueprint(products_bp, url_prefix="/api/products")
+    app.register_blueprint(recommendations_bp, url_prefix="/recommendations")
 
     @app.route("/")
     def root():
