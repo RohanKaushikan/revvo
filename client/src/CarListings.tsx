@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./CarListings.css";
-import { Car as CarIcon } from "lucide-react";
+import {
+  Car as CarIcon,
+  MapPin,
+  Building2,
+  Gauge,
+  PaintBucket,
+  Fuel,
+  Settings,
+  Shield,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Info,
+  History,
+} from "lucide-react";
 
-// ==============================
-// 🔹 Type Definitions
-// ==============================
 interface Car {
   id: number;
   make: string;
@@ -18,11 +30,17 @@ interface Car {
   description: string;
   insuranceEstimate: number;
   maintenanceNote: string;
+  ratings?: any;
+  history?: any;
+  dealer?: string;
+  listing?: string;
+  exteriorColor?: string;
+  interiorColor?: string;
+  drivetrain?: string;
+  transmission?: string;
+  fuel?: string;
 }
 
-// ==============================
-// 🔹 Fetch API Function
-// ==============================
 const fetchListings = async (
   state: string,
   budget: number,
@@ -32,24 +50,22 @@ const fetchListings = async (
     const res = await fetch(
       `http://127.0.0.1:8000/listings/?state=${state}&budget=${budget}&primary_use=${primaryUse}`
     );
-
-    if (!res.ok) {
-      console.error(`❌ API request failed (${res.status})`);
-      return [];
-    }
+    if (!res.ok) return [];
 
     const data = await res.json();
-    if (!data.listings) {
-      console.warn("⚠️ No listings found in API response:", data);
-      return [];
-    }
+    if (!data.listings) return [];
 
-    // Transform backend structure → Car[]
-    const cars: Car[] = Object.entries(data.listings).map(
+    return Object.entries(data.listings).map(
       ([vin, item]: [string, any], index) => {
         const retail = item.retailListing || {};
         const vehicle = item.vehicle || {};
         const ratings = item.ratings || {};
+        const history = item.history || {};
+        const parsedImages = Array.isArray(retail.images)
+          ? retail.images
+          : typeof retail.images === "string"
+          ? retail.images.split(",").map((url: string) => url.trim())
+          : [];
 
         return {
           id: index,
@@ -59,230 +75,338 @@ const fetchListings = async (
           price: retail.price || 0,
           mileage: retail.miles || 0,
           image:
-            retail.images ||
+            parsedImages[0] ||
             "https://source.unsplash.com/1000x700/?car,vehicle,auto",
-          images: [retail.images].filter(Boolean),
+          images: parsedImages,
           location: `${retail.city || "Unknown"}, ${retail.state || ""}`,
           description: `${vehicle.make || ""} ${vehicle.model || ""} ${
             vehicle.trim || ""
           } — ${vehicle.engine || "N/A"} engine, ${vehicle.transmission || ""}`,
           insuranceEstimate: Math.round((retail.price || 10000) * 0.12),
-          maintenanceNote: `⭐ Overall Rating: ${
+          maintenanceNote: `Overall Rating: ${
             ratings.overallRating?.toFixed(2) || "N/A"
           } / 5`,
+          ratings,
+          history,
+          dealer: retail.dealer,
+          listing: retail.listing,
+          exteriorColor: vehicle.exteriorColor,
+          interiorColor: vehicle.interiorColor,
+          drivetrain: vehicle.drivetrain,
+          transmission: vehicle.transmission,
+          fuel: vehicle.fuel,
         };
       }
     );
-
-    return cars;
   } catch (err) {
-    console.error("❌ Failed to fetch listings:", err);
+    console.error("❌ Fetch failed:", err);
     return [];
   }
 };
 
-// ==============================
-// 🔹 Component
-// ==============================
 const CarListings: React.FC = () => {
   const [cars, setCars] = useState<Car[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Filter inputs
-  const [make, setMake] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-
-  // Modal & image carousel
+  const [filters, setFilters] = useState({
+    make: "",
+    model: "",
+    year: "",
+    maxPrice: "",
+  });
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentImage, setCurrentImage] = useState(0);
+  const autoSlideRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Reset carousel when car changes
-  useEffect(() => setCurrentImageIndex(0), [selectedCar]);
-
-  // Fetch listings on mount
   useEffect(() => {
     const loadCars = async () => {
       setLoading(true);
-      const data = await fetchListings("NJ", 10000, "Uber_Black");
+      const data = await fetchListings("NJ", 80000, "Luxury");
       setCars(data);
       setLoading(false);
     };
     loadCars();
   }, []);
 
-  // Filtering logic
+  // Carousel auto-slide
+  useEffect(() => {
+    if (!selectedCar) return;
+    if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+    autoSlideRef.current = setInterval(() => {
+      setCurrentImage((prev) =>
+        selectedCar.images.length
+          ? (prev + 1) % selectedCar.images.length
+          : 0
+      );
+    }, 4000);
+    return () => {
+      if (autoSlideRef.current) clearInterval(autoSlideRef.current);
+    };
+  }, [selectedCar]);
+
   const filteredCars = cars.filter(
     (car) =>
-      (make === "" || car.make.toLowerCase().includes(make.toLowerCase())) &&
-      (model === "" || car.model.toLowerCase().includes(model.toLowerCase())) &&
-      (year === "" || car.year === Number(year)) &&
-      (maxPrice === "" || car.price <= Number(maxPrice))
+      (filters.make === "" ||
+        car.make.toLowerCase().includes(filters.make.toLowerCase())) &&
+      (filters.model === "" ||
+        car.model.toLowerCase().includes(filters.model.toLowerCase())) &&
+      (filters.year === "" || car.year === Number(filters.year)) &&
+      (filters.maxPrice === "" ||
+        car.price <= Number(filters.maxPrice))
   );
 
-  // ==============================
-  // 🔹 Render
-  // ==============================
   return (
-    <div className="page">
-      <div className="listings-page">
-        <div className="filter-bar">
-          <h2>
-            <CarIcon size={22} style={{ marginRight: "8px" }} />
-            Find Your Perfect Ride
-          </h2>
-          <div className="filters">
+    <div className="listings-page">
+      {/* Filter Bar */}
+      <div className="filter-bar">
+        <h2>
+          <CarIcon size={22} style={{ marginRight: "8px" }} />
+          Find Your Perfect Ride
+        </h2>
+        <div className="filters">
+          {["make", "model", "year", "maxPrice"].map((key) => (
             <input
-              type="text"
-              placeholder="Make"
-              value={make}
-              onChange={(e) => setMake(e.target.value)}
+              key={key}
+              type={key === "year" || key === "maxPrice" ? "number" : "text"}
+              placeholder={
+                key === "maxPrice"
+                  ? "Max Price ($)"
+                  : key[0].toUpperCase() + key.slice(1)
+              }
+              value={(filters as any)[key]}
+              onChange={(e) =>
+                setFilters({ ...filters, [key]: e.target.value })
+              }
             />
-            <input
-              type="text"
-              placeholder="Model"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="Year"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="Max Price ($)"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
-          </div>
+          ))}
         </div>
+      </div>
 
-        {loading ? (
-          <p className="loading">Loading car listings...</p>
-        ) : filteredCars.length === 0 ? (
-          <p className="no-results">No cars match your filters.</p>
-        ) : (
-          <div className="car-grid">
-            {filteredCars.map((car) => (
-              <div
-                className="car-card"
-                key={car.id}
-                onClick={() => {
-                  setSelectedCar(car);
-                  setCurrentImageIndex(0);
-                }}
-              >
-                <div className="image-wrapper">
-                  <img src={car.image} alt={`${car.make} ${car.model}`} />
-                </div>
-                <div className="car-info">
-                  <h3>
-                    {car.year} {car.make} {car.model}
-                  </h3>
-                  <p className="price">${car.price.toLocaleString()}</p>
-                  <p className="details">
-                    {car.mileage.toLocaleString()} miles • {car.location}
-                  </p>
-                </div>
+      {/* Listings */}
+      {loading ? (
+        <p className="loading">Loading car listings...</p>
+      ) : filteredCars.length === 0 ? (
+        <p className="no-results">No cars match your filters.</p>
+      ) : (
+        <div className="car-grid">
+          {filteredCars.map((car) => (
+            <div
+              className="car-card"
+              key={car.id}
+              onClick={() => {
+                setSelectedCar(car);
+                setCurrentImage(0);
+              }}
+            >
+              <div className="image-wrapper">
+                <img src={car.image} alt={`${car.make} ${car.model}`} />
               </div>
-            ))}
-          </div>
-        )}
+              <div className="car-info">
+                <h3>
+                  {car.year} {car.make} {car.model}
+                </h3>
+                <p className="price">${car.price.toLocaleString()}</p>
+                <p className="details">
+                  <Gauge size={14} style={{ marginRight: "5px" }} />
+                  {car.mileage.toLocaleString()} mi • <MapPin size={14} />{" "}
+                  {car.location}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* Modal */}
-        {selectedCar && (
-          <div
-            className="modal-overlay"
-            onClick={() => {
-              setSelectedCar(null);
-              setCurrentImageIndex(0);
-            }}
-          >
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <button
-                className="close-btn"
-                onClick={() => {
-                  setSelectedCar(null);
-                  setCurrentImageIndex(0);
+      {/* Modal */}
+      {selectedCar && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedCar(null)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setSelectedCar(null)}>
+              <X />
+            </button>
+
+            {/* Carousel */}
+            <div className="image-carousel-container">
+              <div
+                className="image-carousel"
+                style={{
+                  transform: `translateX(-${currentImage * 100}%)`,
                 }}
               >
-                ×
+                {selectedCar.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt={`${selectedCar.make}-${i}`}
+                    className="carousel-image"
+                  />
+                ))}
+              </div>
+
+              <button
+                className="carousel-btn carousel-btn-left"
+                onClick={() =>
+                  setCurrentImage(
+                    currentImage === 0
+                      ? selectedCar.images.length - 1
+                      : currentImage - 1
+                  )
+                }
+              >
+                <ChevronLeft />
+              </button>
+              <button
+                className="carousel-btn carousel-btn-right"
+                onClick={() =>
+                  setCurrentImage(
+                    (currentImage + 1) % selectedCar.images.length
+                  )
+                }
+              >
+                <ChevronRight />
               </button>
 
-              <div className="image-carousel-container">
-                <div
-                  className="image-carousel"
-                  style={{
-                    transform: `translateX(-${currentImageIndex * 100}%)`,
-                  }}
-                >
-                  {selectedCar.images.map((img, index) => (
-                    <img
-                      key={index}
-                      src={img}
-                      alt={`${selectedCar.make} ${selectedCar.model} - ${index + 1}`}
-                      className="carousel-image"
-                    />
-                  ))}
+              <div className="carousel-indicators">
+                {selectedCar.images.map((_, i) => (
+                  <button
+                    key={i}
+                    className={`indicator ${
+                      currentImage === i ? "active" : ""
+                    }`}
+                    onClick={() => setCurrentImage(i)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Info Section */}
+            <div className="modal-columns">
+              <div className="car-details">
+                <h2>
+                  {selectedCar.year} {selectedCar.make} {selectedCar.model}
+                </h2>
+                <p className="modal-price">
+                  ${selectedCar.price.toLocaleString()}
+                </p>
+                <p className="modal-detail">
+                  <MapPin size={14} /> {selectedCar.location} •{" "}
+                  <Gauge size={14} /> {selectedCar.mileage.toLocaleString()} mi
+                </p>
+                <p className="description">{selectedCar.description}</p>
+                {selectedCar.listing && (
+                  <a
+                    href={selectedCar.listing}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="listing-link"
+                  >
+                    View Full Listing
+                  </a>
+                )}
+                {selectedCar.dealer && (
+                  <p>
+                    <Building2 size={14} /> Dealer: {selectedCar.dealer}
+                  </p>
+                )}
+
+                <div className="vehicle-meta">
+                  <p>
+                    <Settings size={14} /> {selectedCar.transmission}
+                  </p>
+                  <p>
+                    <Fuel size={14} /> {selectedCar.fuel}
+                  </p>
+                  <p>
+                    <PaintBucket size={14} /> Exterior:{" "}
+                    {selectedCar.exteriorColor}
+                  </p>
+                  <p>Interior: {selectedCar.interiorColor}</p>
                 </div>
 
-                {/* Carousel Controls */}
-                {currentImageIndex > 0 && (
-                  <button
-                    className="carousel-btn carousel-btn-left"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex(currentImageIndex - 1);
-                    }}
-                  >
-                    ‹
-                  </button>
-                )}
-                {currentImageIndex < selectedCar.images.length - 1 && (
-                  <button
-                    className="carousel-btn carousel-btn-right"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex(currentImageIndex + 1);
-                    }}
-                  >
-                    ›
-                  </button>
+                {selectedCar.history && (
+                  <div className="history-section">
+                    <h3>
+                      <History size={16} /> Vehicle History
+                    </h3>
+                    <ul>
+                      <li>
+                        Accidents: {selectedCar.history.accidentCount ?? "N/A"}
+                      </li>
+                      <li>
+                        Owner Count: {selectedCar.history.ownerCount ?? "N/A"}
+                      </li>
+                      <li>
+                        One Owner: {selectedCar.history.oneOwner ? "Yes" : "No"}
+                      </li>
+                      <li>
+                        Personal Use:{" "}
+                        {selectedCar.history.personalUse ? "Yes" : "No"}
+                      </li>
+                      <li>
+                        Usage Type: {selectedCar.history.usageType ?? "N/A"}
+                      </li>
+                    </ul>
+                  </div>
                 )}
               </div>
 
-              <div className="modal-content">
-                <div className="modal-content-wrapper">
-                  <div className="vehicle-info">
-                    <h2>
-                      {selectedCar.year} {selectedCar.make} {selectedCar.model}
-                    </h2>
-                    <p className="modal-price">
-                      ${selectedCar.price.toLocaleString()}
-                    </p>
-                    <p className="modal-detail">
-                      📍 {selectedCar.location} •{" "}
-                      {selectedCar.mileage.toLocaleString()} miles
-                    </p>
-                    <p className="description">{selectedCar.description}</p>
+              {/* Ratings & Insights */}
+              <div className="car-ratings">
+                {selectedCar.ratings && (
+                  <div className="ratings-section">
+                    <h3>
+                      <Star size={16} /> Ratings
+                    </h3>
+                    <ul>
+                      <li>
+                        Deal:{" "}
+                        {selectedCar.ratings.dealRating?.toFixed(2) || "N/A"}
+                      </li>
+                      <li>
+                        Fuel Economy:{" "}
+                        {selectedCar.ratings.fuelEconomyRating?.toFixed(2) ||
+                          "N/A"}
+                      </li>
+                      <li>
+                        Maintenance:{" "}
+                        {selectedCar.ratings.maintenanceRating?.toFixed(2) ||
+                          "N/A"}
+                      </li>
+                      <li>
+                        Safety:{" "}
+                        {selectedCar.ratings.safetyRating?.toFixed(2) || "N/A"}
+                      </li>
+                      <li>
+                        Owner Satisfaction:{" "}
+                        {selectedCar.ratings.ownerSatisfactionRating?.toFixed(
+                          2
+                        ) || "N/A"}
+                      </li>
+                      <li>
+                        <strong>
+                          Overall:{" "}
+                          {selectedCar.ratings.overallRating?.toFixed(2) ||
+                            "N/A"}
+                        </strong>
+                      </li>
+                    </ul>
                   </div>
+                )}
 
-                  <div className="insight-box">
-                    <p>💡 {selectedCar.maintenanceNote}</p>
-                    <p>
-                      🛡 Estimated Insurance: $
-                      {selectedCar.insuranceEstimate.toLocaleString()}/yr
-                    </p>
-                  </div>
+                <div className="insight-box">
+                  <Info size={16} /> <span>{selectedCar.maintenanceNote}</span>
+                  <p>
+                    <Shield size={14} /> Insurance Estimate: $
+                    {selectedCar.insuranceEstimate.toLocaleString()}/yr
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

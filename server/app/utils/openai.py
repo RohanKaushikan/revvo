@@ -12,7 +12,7 @@ def get_car_recommendation(state, budget, primary_use, comfort):
 
     # Construct a prompt for OpenAI
     prompt = f"""
-    You are an expert car consultant. Suggest 10 cars (make, model, and year) that best fit
+    You are an expert car consultant. Suggest top 3 cars (make, model, and year) that best fit
     the following buyer preferences:
 
     - Max budget: ${budget}

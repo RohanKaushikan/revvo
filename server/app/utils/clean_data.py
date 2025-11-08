@@ -1,9 +1,11 @@
 from .openai import get_car_rating
+import os
+from flask import jsonify
+import requests
 
 def clean_listings(data):
     simplified_results = {}
     vin_set = set()
-
     for item in data.get("results", []):
         try:
             listings = item.get("listings", [])
@@ -36,6 +38,30 @@ def clean_listings(data):
                     retail["listing"] = retail.pop("vdp", None)
                     vehicle = listing.get("vehicle", {})
 
+                    token = os.getenv("AUTO_DEV_KEY")
+                    if not token:
+                        return jsonify({"error": "Missing AUTO_DEV_KEY environment variable"}), 500
+
+                    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+                    url = f'https://api.auto.dev/photos/{vin}'
+
+                    try:
+                        resp = requests.get(url, headers=headers, timeout=2)
+                        if resp.status_code == 200:
+                            listings_data = resp.json()
+                            photo_data = listings_data.get("data", [])
+                            photo_retail = photo_data.get("retail", {})
+                            if photo_retail is not None:
+                                images = photo_retail
+                            else:
+                                images = retail.get("primaryImage")
+                        else:
+                            print(f"❌ Auto.dev error {resp.status_code} for {vin} images")
+                            images = retail.get("primaryImage")
+                    except Exception as e:
+                        print(f"❌ Auto.dev error {resp.status_code} for {vin} images")
+                        images = retail.get("primaryImage")
+
                     simplified_results[vin] = {
                          **(
                             {"history": {
@@ -54,7 +80,7 @@ def clean_listings(data):
                             "dealer": retail.get("dealer"),
                             "miles": retail.get("miles"),
                             "price": retail.get("price"),
-                            "images": retail.get("primaryImage"),
+                            "images": images,
                             "state": retail.get("state"),
                             "used": retail.get("used"),
                             "listing": retail.get("listing"),
