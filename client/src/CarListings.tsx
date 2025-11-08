@@ -17,6 +17,7 @@ interface Car {
   location: string;
   description: string;
   insuranceEstimate: number;
+  insuranceMonthly: number;
   maintenanceNote: string;
 }
 
@@ -50,6 +51,7 @@ const fetchListings = async (
         const retail = item.retailListing || {};
         const vehicle = item.vehicle || {};
         const ratings = item.ratings || {};
+        const insurance = item.insurance || {};
 
         return {
           id: index,
@@ -66,7 +68,8 @@ const fetchListings = async (
           description: `${vehicle.make || ""} ${vehicle.model || ""} ${
             vehicle.trim || ""
           } — ${vehicle.engine || "N/A"} engine, ${vehicle.transmission || ""}`,
-          insuranceEstimate: Math.round((retail.price || 10000) * 0.12),
+          insuranceEstimate: Math.round(insurance.annualEstimate || (retail.price || 10000) * 0.12),
+          insuranceMonthly: Math.round(insurance.monthlyEstimate || ((retail.price || 10000) * 0.12) / 12),
           maintenanceNote: `⭐ Overall Rating: ${
             ratings.overallRating?.toFixed(2) || "N/A"
           } / 5`,
@@ -186,6 +189,9 @@ const CarListings: React.FC = () => {
                   <p className="details">
                     {car.mileage.toLocaleString()} miles • {car.location}
                   </p>
+                  <p className="insurance-preview">
+                    🛡 ~${car.insuranceMonthly.toLocaleString()}/mo insurance
+                  </p>
                 </div>
               </div>
             ))}
@@ -274,7 +280,8 @@ const CarListings: React.FC = () => {
                     <p>💡 {selectedCar.maintenanceNote}</p>
                     <p>
                       🛡 Estimated Insurance: $
-                      {selectedCar.insuranceEstimate.toLocaleString()}/yr
+                      {selectedCar.insuranceMonthly.toLocaleString()}/mo
+                      {" "}(${selectedCar.insuranceEstimate.toLocaleString()}/yr)
                     </p>
                   </div>
                 </div>

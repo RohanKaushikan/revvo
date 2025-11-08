@@ -1,4 +1,5 @@
 from .openai import get_car_rating
+from .insurance_prediction import estimate_annual_insurance
 
 def clean_listings(data):
     simplified_results = {}
@@ -81,6 +82,7 @@ def clean_listings(data):
                         }
                     }
                     simplified_results[vin]["ratings"] = get_car_rating(simplified_results[vin])
+                    simplified_results[vin]["insurance"] = estimate_annual_insurance(simplified_results[vin])
                 except Exception as e:
                     import traceback
                     print(f"❌ Error while processing VIN or listing: {e}")
