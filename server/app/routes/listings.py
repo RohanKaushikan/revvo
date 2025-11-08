@@ -4,7 +4,7 @@ import os
 
 listings_bp = Blueprint("listings", __name__)
 
-@account_bp.route("/listings", methods=["GET"])
+@listings_bp.route("/listings", methods=["GET"])
 def get_listings_by_():
     token = os.getenv("AUTO_DEV_KEY")
     headers = {
