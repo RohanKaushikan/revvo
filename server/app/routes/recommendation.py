@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 import requests
 import os
 from openai import OpenAI
@@ -30,7 +30,7 @@ def get_car_recommendations():
 
     # Construct a prompt for OpenAI
     prompt = f"""
-    You are an expert car consultant. Suggest 5 cars (make, model, and year) that best fit
+    You are an expert car consultant. Suggest 10 cars (make, model, and year) that best fit
     the following buyer preferences:
 
     - Max budget: ${budget}
