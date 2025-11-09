@@ -1,6 +1,6 @@
 # Vercel Deployment Guide
 
-This guide will help you deploy your CarInsight application to Vercel.
+This guide will help you deploy your Revvo application to Vercel.
 
 ## Prerequisites
 
