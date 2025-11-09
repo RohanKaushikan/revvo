@@ -225,16 +225,18 @@ body {
 }
 
 .card {
-  background: white;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
   border-radius: 1.25rem;
   padding: 2rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   text-align: center;
   flex: 1 1 300px;
   max-width: 340px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.2s ease;
 }
 .card:hover {
+  background: white;
   transform: translateY(-6px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
@@ -251,6 +253,8 @@ body {
 
 /* Trust Section */
 .trust {
+  position: relative;
+  z-index: 1;
   width: 100%;
   background: #2563eb;
   color: white;
@@ -269,6 +273,8 @@ body {
 
 /* Footer */
 .footer {
+  position: relative;
+  z-index: 1;
   padding: 3rem 1rem;
   text-align: center;
   font-size: 0.9rem;

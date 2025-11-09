@@ -78,7 +78,7 @@ const Landing: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
         >
-          Drive Smarter. Buy Confidently.
+          The world's most honest car dealer.
         </motion.h1>
 
         <motion.p
@@ -87,7 +87,7 @@ const Landing: React.FC = () => {
           transition={{ delay: 0.2, duration: 0.7 }}
         >
           Discover the smartest way to buy your next car. Get real insights,
-          pricing predictions, and scam alerts — all personalized for you.
+          pricing predictions, and expert-level conversations — all personalized for you.
         </motion.p>
 
         <motion.button

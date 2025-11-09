@@ -66,7 +66,8 @@ const fetchListings = async (
   primaryUse: string
 ): Promise<Car[]> => {
   try {
-    const url = `http://localhost:8000/listings/?state=${state}&budget=${budget}&primary_use=${primaryUse}`;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const url = `${apiUrl}/listings/?state=${state}&budget=${budget}&primary_use=${primaryUse}`;
     console.log("🔍 Fetching from:", url);
     
     const res = await fetch(url);
@@ -300,7 +301,8 @@ const CarListings: React.FC = () => {
     setChatMessages(newMessages);
 
     try {
-      const response = await fetch("http://localhost:8000/listings/chat", {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/listings/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
