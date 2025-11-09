@@ -106,31 +106,39 @@ def estimate_annual_insurance(car_data):
     current_year = 2025
     age = max(0, current_year - year)
 
-    # Newer cars (0-3 years) have higher insurance due to value
-    # Older cars (10+ years) decrease slightly
-    if age <= 3:
-        age_mult = 1.10
-    elif age <= 7:
-        age_mult = 1.00
-    elif age <= 10:
-        age_mult = 0.95
+    # More granular age brackets for diversity
+    if age <= 2:
+        age_mult = 1.15  # Brand new, high value
+    elif age <= 5:
+        age_mult = 1.05  # Relatively new
+    elif age <= 8:
+        age_mult = 0.95  # Mid-age, depreciated
+    elif age <= 12:
+        age_mult = 0.85  # Older, lower value
     else:
-        age_mult = 0.90
+        age_mult = 0.75  # Very old, much lower value
 
     # === MILEAGE FACTOR ===
     miles = retail.get("miles", 50000)
-    if miles < 30000:
-        mileage_mult = 1.05  # Low mileage = higher value = higher insurance
-    elif miles < 75000:
-        mileage_mult = 1.00
+    # More granular mileage brackets for diversity
+    if miles < 20000:
+        mileage_mult = 1.10  # Very low mileage = higher value
+    elif miles < 50000:
+        mileage_mult = 1.05  # Low mileage
+    elif miles < 80000:
+        mileage_mult = 0.95  # Average mileage
     elif miles < 120000:
-        mileage_mult = 0.97
+        mileage_mult = 0.85  # High mileage
     else:
-        mileage_mult = 0.94
+        mileage_mult = 0.75  # Very high mileage
 
     # === ACCIDENT HISTORY ===
     accident_count = history.get("accidentCount", 0) if history else 0
-    accident_mult = 1.0 + (accident_count * 0.15)  # +15% per accident
+    # Clean history gives discount, accidents increase cost
+    if accident_count == 0:
+        accident_mult = 0.90  # Clean history discount
+    else:
+        accident_mult = 1.0 + (accident_count * 0.20)  # +20% per accident
 
     # === OWNERSHIP HISTORY ===
     owner_count = history.get("ownerCount", 1) if history else 1
