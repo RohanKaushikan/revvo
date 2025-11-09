@@ -128,7 +128,7 @@ const Landing: React.FC = () => {
 
       <footer className="footer">
         <span>
-          © {new Date().getFullYear()} CarInsight — Empowering Smarter Car
+          © {new Date().getFullYear()} Revvo — Empowering Smarter Car
           Ownership
         </span>
       </footer>

@@ -29,7 +29,7 @@ const Navbar: React.FC<NavbarProps> = ({ fixed = false, onSignInClick }) => {
     <nav className={`navbar ${fixed ? 'navbar-fixed' : 'navbar-static'}`}>
       <div className="logo" onClick={() => navigate("/")}>
         <Car size={28} />
-        <span>CarInsight</span>
+        <span>Revvo</span>
       </div>
       {/* <div className="nav-links">
         <a href="#" onClick={(e) => { e.preventDefault(); navigate("/"); }}>Home</a>
