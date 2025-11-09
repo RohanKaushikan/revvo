@@ -116,6 +116,13 @@ def clean_listings(data):
                         simplified_results[vin]["ratings"] = {}
                     else:
                         simplified_results[vin]["ratings"] = rating_result
+                    
+                    # Get insurance prediction
+                    try:
+                        simplified_results[vin]["insurance"] = estimate_annual_insurance(simplified_results[vin])
+                    except Exception as e:
+                        print(f"⚠️ Failed to get insurance for {vin}: {e}")
+                        simplified_results[vin]["insurance"] = {}
                 except Exception as e:
                     import traceback
                     print(f"❌ Error while processing VIN or listing: {e}")
