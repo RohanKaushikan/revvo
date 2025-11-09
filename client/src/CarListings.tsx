@@ -19,6 +19,9 @@ import {
   Send,
   ChevronRight as ChevronRightIcon,
 } from "lucide-react";
+import { useAuth } from "./AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 interface Car {
   id: number;
@@ -144,23 +147,44 @@ const CarListings: React.FC = () => {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadCars = async () => {
       setLoading(true);
 
       try {
-        const stored = localStorage.getItem("profile");
+        let profile = null;
+
+        if (user) {
+          // When logged in, load from Firestore
+          try {
+            const docRef = doc(db, "profiles", user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              profile = docSnap.data();
+            }
+          } catch (err) {
+            console.error("Error loading profile from Firestore:", err);
+          }
+        } else {
+          // When not logged in, use localStorage
+          const stored = localStorage.getItem("profile");
+          if (stored) {
+            profile = JSON.parse(stored);
+          }
+        }
 
         let state = "NJ";
         let budget = 50000;
         let primaryUse = "Sedan";
 
-        if (stored) {
-          const profile = JSON.parse(stored);
-          state = profile.location.state ? "NJ" : "CA";
-          budget = Number(profile.budget.max) || 50000;
-          primaryUse = profile.comfort.level || "Sedan";
+        if (profile) {
+          // Use zipCode if available, otherwise default to NJ
+          // Note: In a production app, you'd want to map zipCode to state
+          state = profile.zipCode ? "NJ" : "NJ"; // Default to NJ for now
+          budget = Number(profile.budgetMax) || Number(profile.budgetMin) || 50000;
+          primaryUse = profile.comfortLevel || "Sedan";
         }
 
         const data = await fetchListings(state, budget, primaryUse);
@@ -173,7 +197,7 @@ const CarListings: React.FC = () => {
     };
 
     loadCars();
-  }, []);
+  }, [user]);
 
   // Carousel auto-slide
   useEffect(() => {

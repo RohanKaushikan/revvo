@@ -108,7 +108,6 @@ def clean_listings(data):
                             "year": vehicle.get("year"),
                         }
                     }
-<<<<<<< HEAD
                     # Get ratings - handle both dict and tuple responses
                     rating_result = get_car_rating(simplified_results[vin])
                     if isinstance(rating_result, tuple):
@@ -117,10 +116,6 @@ def clean_listings(data):
                         simplified_results[vin]["ratings"] = {}
                     else:
                         simplified_results[vin]["ratings"] = rating_result
-=======
-                    simplified_results[vin]["ratings"] = get_car_rating(simplified_results[vin])
-                    simplified_results[vin]["insurance"] = estimate_annual_insurance(simplified_results[vin])
->>>>>>> 80e648be3fe93b604d77b504f06591241cb9cc80
                 except Exception as e:
                     import traceback
                     print(f"❌ Error while processing VIN or listing: {e}")
