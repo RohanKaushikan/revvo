@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Car, AlertTriangle, TrendingUp, ShieldCheck, User, X } from "lucide-react";
+import { Car, MessageCircle, TrendingUp, ShieldCheck, User, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import "./App.css";
@@ -111,11 +111,11 @@ const Landing: React.FC = () => {
         </div>
 
         <div className="card">
-          <AlertTriangle size={36} color="#eab308" />
-          <h3>Scam Detection</h3>
+          <MessageCircle size={36} color="#eab308" />
+          <h3>AI Chat Assistant</h3>
           <p>
-            We flag suspicious listings and show hidden red flags before you
-            make your purchase.
+            Chat with our AI-powered virtual car dealer to get personalized
+            recommendations, ask questions, and find the perfect car for you.
           </p>
         </div>
 
@@ -123,8 +123,7 @@ const Landing: React.FC = () => {
           <TrendingUp size={36} color="#16a34a" />
           <h3>Price & Negotiation Guide</h3>
           <p>
-            Our algorithm estimates fair market value and helps you negotiate
-            with confidence.
+            Our algorithm estimates depreciation and insurance costs for each car, helping you make a more informed decision.
           </p>
         </div>
       </section>
