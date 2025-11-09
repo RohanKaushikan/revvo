@@ -123,7 +123,7 @@ def get_car_rating(vehicle_data):
         return jsonify({"error": str(e)}), 500
 
 def chat_about_car(car_data, message_history):
-    """Chat with AI about a specific car using conversation history."""
+    """Chat with AI about a specific car using conversation history. Don't include any headers or anything that needs to be formatted. Just be conversational."""
     key = os.getenv("OPENAI_API_KEY")
     if not key:
         return {"error": "Missing OpenAI API key"}

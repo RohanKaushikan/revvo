@@ -8,18 +8,17 @@ import {
   PaintBucket,
   Fuel,
   Settings,
-  Shield,
   X,
   ChevronLeft,
   ChevronRight,
   Star,
-  Info,
   History,
   TrendingDown,
    MessageCircle,
   Send,
   ChevronRight as ChevronRightIcon,
 } from "lucide-react";
+
 import {
   LineChart,
   Line,
@@ -29,6 +28,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+
 import { useAuth } from "./AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
@@ -45,6 +45,8 @@ interface Car {
   location: string;
   description: string;
   insuranceEstimate: number;
+  insuranceMonthly: number;
+  insuranceBreakdown?: any;
   maintenanceNote: string;
   ratings?: any;
   history?: any;
@@ -117,6 +119,8 @@ const fetchListings = async (
             vehicle.trim || ""
           } — ${vehicle.engine || "N/A"} engine, ${vehicle.transmission || ""}`,
           insuranceEstimate: Math.round((retail.price || 10000) * 0.12),
+          insuranceMonthly: Math.round((retail.price || 10000) * 0.12 / 12),
+          insuranceBreakdown: item.insuranceBreakdown || undefined,
           maintenanceNote: `Overall Rating: ${
             ratings.overallRating?.toFixed(2) || "N/A"
           } / 5`,
@@ -605,7 +609,7 @@ const CarListings: React.FC = () => {
                               />
                             );
                           }
-                          return null;
+                          return <circle cx={cx} cy={cy} r={0} fill="transparent" />;
                         }}
                         activeDot={{ r: 6 }}
                       />
@@ -615,8 +619,6 @@ const CarListings: React.FC = () => {
                     Red dot shows current age ({new Date().getFullYear() - selectedCar.year} yrs) at ${selectedCar.price.toLocaleString()}
                   </p>
                 </div>
-              </div>     
-                    
                 
               {/* Ratings & Insights */}
               <div className="car-ratings">
@@ -661,13 +663,93 @@ const CarListings: React.FC = () => {
                   </div>
                 )}
 
-                <div className="insight-box">
-                  <Info size={16} /> <span>{selectedCar.maintenanceNote}</span>
-                  <p>
-                    <Shield size={14} /> Insurance Estimate: $
-                    {selectedCar.insuranceEstimate.toLocaleString()}/yr
-                  </p>
+            <div className="insight-box">
+                  <div className="rating-display">
+                    <Star size={16} fill="#fbbf24" color="#fbbf24" />
+                    <span className="rating-text">{selectedCar.maintenanceNote}</span>
+                  </div>
+                  <div className="insurance-display">
+                    <span className="insurance-label">Insurance Estimate</span>
+                    <span className="insurance-amount">
+                      ${selectedCar.insuranceMonthly.toLocaleString()}/mo
+                    </span>
+                    <span className="insurance-annual">
+                      (${selectedCar.insuranceEstimate.toLocaleString()}/yr)
+                    </span>
+                    <span className="insurance-suggestion">
+                      Insurance for this car might be cheaper at{" "}
+                      {(() => {
+                        const insurers = [
+                          { name: "GEICO", logo: "https://logo.clearbit.com/geico.com" },
+                          { name: "State Farm", logo: "https://logo.clearbit.com/statefarm.com" },
+                          { name: "Progressive", logo: "https://logo.clearbit.com/progressive.com" },
+                          { name: "Allstate", logo: "https://logo.clearbit.com/allstate.com" },
+                          { name: "USAA", logo: "https://logo.clearbit.com/usaa.com" }
+                        ];
+                        const index = selectedCar.id % insurers.length;
+                        const insurer = insurers[index];
+                        return (
+                          <>
+                            <img
+                              src={insurer.logo}
+                              alt={insurer.name}
+                              className="insurer-logo"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            {insurer.name}
+                          </>
+                        );
+                      })()}
+                    </span>
+                  </div>
                 </div>
+
+                {selectedCar.insuranceBreakdown && (() => {
+                  console.log('✅ Insurance breakdown data:', selectedCar.insuranceBreakdown);
+                  return (
+                    <div className="insurance-breakdown">
+                      <h4 className="breakdown-title">Cost Factors</h4>
+                      <div className="factor-list">
+                        {[
+                          { key: 'locationMultiplier', label: 'Location (State)', value: selectedCar.insuranceBreakdown.locationMultiplier },
+                          { key: 'makeMultiplier', label: 'Make/Brand', value: selectedCar.insuranceBreakdown.makeMultiplier },
+                          { key: 'bodyStyleMultiplier', label: 'Body Style', value: selectedCar.insuranceBreakdown.bodyStyleMultiplier },
+                          { key: 'engineMultiplier', label: 'Engine Size', value: selectedCar.insuranceBreakdown.engineMultiplier },
+                          { key: 'ageMultiplier', label: 'Vehicle Age', value: selectedCar.insuranceBreakdown.ageMultiplier },
+                          { key: 'mileageMultiplier', label: 'Mileage', value: selectedCar.insuranceBreakdown.mileageMultiplier },
+                          { key: 'accidentMultiplier', label: 'Accident History', value: selectedCar.insuranceBreakdown.accidentMultiplier },
+                        ].filter(factor => {
+                          // Only show factors that have meaningful impact (not neutral)
+                          if (factor.value === undefined) return false;
+                          const impact = Math.abs((factor.value - 1) * 100);
+                          return impact >= 2; // Hide factors with <2% impact
+                        }).map(factor => {
+                          const impact = ((factor.value - 1) * 100);
+                          const isIncreasing = factor.value > 1.0;
+                          const isNeutral = false; // Already filtered out neutrals
+
+                          return (
+                            <div key={factor.key} className="factor-item">
+                              <span className="factor-label">{factor.label}</span>
+                              <div className="factor-bar-container">
+                                <div
+                                  className={`factor-bar ${isNeutral ? 'neutral' : isIncreasing ? 'increase' : 'decrease'}`}
+                                  style={{ width: `${Math.min(Math.abs(impact), 100)}%` }}
+                                />
+                              </div>
+                              <span className={`factor-value ${isNeutral ? 'neutral' : isIncreasing ? 'increase' : 'decrease'}`}>
+                                {isNeutral ? '—' : `${impact > 0 ? '+' : ''}${impact.toFixed(0)}%`}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               </div>
               </div>
             </div>
