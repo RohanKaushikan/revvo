@@ -90,7 +90,7 @@ const ProfileSetup: React.FC = () => {
         // Only use localStorage when NOT logged in
         localStorage.setItem("profile", JSON.stringify(profile));
       }
-      navigate("/");
+      navigate("/listings");
     }
   };
 

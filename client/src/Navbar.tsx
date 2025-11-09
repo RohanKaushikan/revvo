@@ -20,24 +20,29 @@ const Navbar: React.FC<NavbarProps> = ({ fixed = false, onSignInClick }) => {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
   return (
     <nav className={`navbar ${fixed ? 'navbar-fixed' : 'navbar-static'}`}>
       <div className="logo" onClick={() => navigate("/")}>
         <Car size={28} />
         <span>CarInsight</span>
       </div>
-      <div className="nav-links">
+      {/* <div className="nav-links">
         <a href="#" onClick={(e) => { e.preventDefault(); navigate("/"); }}>Home</a>
         <a href="#">Features</a>
         <a href="#">Contact</a>
-      </div>
+      </div> */}
       <div className="nav-actions">
         {user ? (
           <>
             <button className="profile-icon" onClick={() => navigate("/profile")}>
               <User size={24} />
             </button>
-            <button className="nav-btn" onClick={logout} style={{ marginLeft: "8px" }}>
+            <button className="nav-btn" onClick={handleLogout} style={{ marginLeft: "8px" }}>
               Logout
             </button>
           </>

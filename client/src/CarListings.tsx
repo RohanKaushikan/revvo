@@ -17,7 +17,10 @@ import {
   MessageCircle,
   Send,
   ChevronRight as ChevronRightIcon,
+  FileText,
+  Loader2,
 } from "lucide-react";
+import jsPDF from "jspdf";
 import Navbar from "./Navbar";
 
 import {
@@ -33,6 +36,7 @@ import {
 import { useAuth } from "./AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "./firebase";
+import { zipCodeToState } from "./zipCodeToState";
 
 interface Car {
   id: number;
@@ -237,9 +241,8 @@ const CarListings: React.FC = () => {
         let primaryUse = "Sedan";
 
         if (profile) {
-          // Use zipCode if available, otherwise default to NJ
-          // Note: In a production app, you'd want to map zipCode to state
-          state = profile.zipCode ? "NJ" : "NJ"; // Default to NJ for now
+          // Convert zip code to state, or default to NJ if no zip code
+          state = profile.zipCode ? zipCodeToState(profile.zipCode) : "NJ";
           budget = Number(profile.budgetMax) || Number(profile.budgetMin) || 50000;
           primaryUse = profile.comfortLevel || "Sedan";
         }
@@ -335,6 +338,210 @@ const CarListings: React.FC = () => {
     }
   };
 
+  const generatePDF = () => {
+    if (!selectedCar) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    let yPosition = margin;
+    const lineHeight = 7;
+    const sectionSpacing = 10;
+
+    // Helper function to add a new page if needed
+    const checkPageBreak = (requiredSpace: number) => {
+      if (yPosition + requiredSpace > pageHeight - margin) {
+        doc.addPage();
+        yPosition = margin;
+        // Reset font to default after adding new page
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+      }
+    };
+
+    // Helper function to add text with word wrap
+    const addText = (text: string, fontSize: number = 10, isBold: boolean = false, color: number[] = [0, 0, 0]) => {
+      checkPageBreak(lineHeight * 2);
+      // Always set font settings before adding text
+      doc.setFontSize(fontSize);
+      doc.setFont("helvetica", isBold ? "bold" : "normal");
+      doc.setTextColor(color[0], color[1], color[2]);
+      
+      const maxWidth = pageWidth - 2 * margin;
+      const lines = doc.splitTextToSize(text, maxWidth);
+      
+      lines.forEach((line: string) => {
+        checkPageBreak(lineHeight);
+        // Re-set font settings in case page break occurred
+        doc.setFontSize(fontSize);
+        doc.setFont("helvetica", isBold ? "bold" : "normal");
+        doc.setTextColor(color[0], color[1], color[2]);
+        doc.text(line, margin, yPosition);
+        yPosition += lineHeight;
+      });
+    };
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(37, 99, 235);
+    doc.text(`Car Buying Guide: ${selectedCar.year} ${selectedCar.make} ${selectedCar.model}`, margin, yPosition);
+    yPosition += lineHeight * 2;
+
+    // Car Details Section
+    addText(`Price: $${selectedCar.price.toLocaleString()}`, 12, true);
+    addText(`Mileage: ${selectedCar.mileage.toLocaleString()} miles`, 10);
+    addText(`Location: ${selectedCar.location}`, 10);
+    if (selectedCar.dealer) {
+      addText(`Dealer: ${selectedCar.dealer}`, 10);
+    }
+    yPosition += sectionSpacing;
+
+    // Negotiation Tips
+    checkPageBreak(lineHeight * 15);
+    addText("NEGOTIATION TIPS", 14, true, [37, 99, 235]);
+    yPosition += 3;
+    
+    const negotiationTips = [
+      "Research the market value using KBB, Edmunds, and similar listings in your area",
+      "Start negotiations 10-15% below the asking price to leave room for compromise",
+      "Get pre-approved financing before negotiating to strengthen your position",
+      "Point out any issues you notice during inspection (scratches, wear, etc.)",
+      "Be willing to walk away if the price doesn't meet your budget",
+      "Negotiate the out-the-door price, not just the sticker price",
+      "Consider timing - end of month/quarter often yields better deals",
+      "Ask about dealer incentives, rebates, or special financing offers",
+      "Don't focus only on monthly payments - negotiate the total price first",
+      "Get competing offers from other dealers to use as leverage"
+    ];
+
+    negotiationTips.forEach((tip, index) => {
+      addText(`${index + 1}. ${tip}`, 10, false);
+      yPosition += 2;
+    });
+    yPosition += sectionSpacing;
+
+    // Inspection Checklist
+    checkPageBreak(lineHeight * 20);
+    addText("INSPECTION CHECKLIST", 14, true, [37, 99, 235]);
+    yPosition += 3;
+
+    const inspectionChecklist = [
+      "Exterior: Check for dents, scratches, rust, paint mismatches, and panel gaps",
+      "Tires: Inspect tread depth, wear patterns, and check for dry rot or cracks",
+      "Engine: Look for leaks, check oil color/level, listen for unusual noises",
+      "Transmission: Test all gears, check for smooth shifting, look for leaks",
+      "Brakes: Test brake feel, check for squealing, inspect brake pads if visible",
+      "Suspension: Test drive over bumps, check for bouncing or unusual sounds",
+      "Interior: Check seats, dashboard, electronics, air conditioning, and heating",
+      "Lights: Test all headlights, taillights, turn signals, and interior lights",
+      "Fluids: Check oil, coolant, brake fluid, transmission fluid, and power steering",
+      "Underbody: Inspect for rust, damage, or signs of accidents",
+      "VIN: Verify VIN matches paperwork and check for tampering",
+      "Test Drive: Drive on various road conditions, test acceleration, braking, steering",
+      "History: Review CarFax or AutoCheck for accidents, title issues, or odometer discrepancies",
+      "Warranty: Check if any factory warranty remains or if extended warranty is available"
+    ];
+
+    inspectionChecklist.forEach((item) => {
+      addText(`☐ ${item}`, 10, false);
+      yPosition += 2;
+    });
+    yPosition += sectionSpacing;
+
+    // Dealer Warning Signs
+    checkPageBreak(lineHeight * 12);
+    addText("DEALER WARNING SIGNS", 14, true, [220, 38, 38]);
+    yPosition += 3;
+
+    const warningSigns = [
+      "High-pressure sales tactics or creating false urgency",
+      "Refusing to let you take the car to an independent mechanic",
+      "Unwillingness to provide vehicle history report or VIN details",
+      "Asking for large deposits before you've decided to buy",
+      "Unusually low prices that seem too good to be true",
+      "Reluctance to answer questions or provide documentation",
+      "Pushing add-ons or extended warranties aggressively",
+      "Inconsistent information about the car's history or condition",
+      "Poor online reviews or complaints about the dealership",
+      "Rushing you through paperwork or discouraging you from reading contracts"
+    ];
+
+    warningSigns.forEach((sign) => {
+      addText(`⚠ ${sign}`, 10, false);
+      yPosition += 2;
+    });
+    yPosition += sectionSpacing;
+
+    // Warranty Advice
+    checkPageBreak(lineHeight * 15);
+    addText("WARRANTY ADVICE", 14, true, [37, 99, 235]);
+    yPosition += 3;
+
+    const warrantyAdvice = [
+      "Check if the vehicle is still under factory warranty (typically 3 years/36,000 miles)",
+      "Understand the difference between bumper-to-bumper and powertrain warranties",
+      "Review what's covered and what's excluded in any warranty",
+      "Consider extended warranties carefully - they may not always be worth the cost",
+      "Ask about warranty transferability if you plan to sell the car",
+      "Get warranty terms in writing and read the fine print",
+      "Research the warranty provider's reputation and claims process",
+      "Compare third-party extended warranty options if factory warranty has expired",
+      "Keep all maintenance records to ensure warranty compliance",
+      "Understand that 'as-is' sales typically mean no warranty protection"
+    ];
+
+    warrantyAdvice.forEach((advice, index) => {
+      addText(`${index + 1}. ${advice}`, 10, false);
+      yPosition += 2;
+    });
+    yPosition += sectionSpacing;
+
+    // Final Summary
+    checkPageBreak(lineHeight * 12);
+    addText("FINAL SUMMARY", 14, true, [37, 99, 235]);
+    yPosition += 3;
+
+    const summary = [
+      `This ${selectedCar.year} ${selectedCar.make} ${selectedCar.model} is listed at $${selectedCar.price.toLocaleString()}.`,
+      `Before making a purchase decision, ensure you:`,
+      `1. Have thoroughly inspected the vehicle or had it inspected by a trusted mechanic`,
+      `2. Verified the vehicle history and confirmed there are no red flags`,
+      `3. Negotiated a fair price based on market research and condition`,
+      `4. Reviewed and understood all warranty options and coverage`,
+      `5. Secured financing (if needed) at competitive rates`,
+      `6. Read all paperwork carefully before signing`,
+      `Remember: Take your time, don't feel pressured, and trust your instincts.`,
+      `If something doesn't feel right, it's okay to walk away.`
+    ];
+
+    summary.forEach((item) => {
+      addText(item, 10, false);
+      yPosition += 2;
+    });
+
+    // Footer
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        `Page ${i} of ${totalPages} - Generated by Car Buying Assistant`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      );
+    }
+
+    // Save the PDF
+    const fileName = `${selectedCar.year}_${selectedCar.make}_${selectedCar.model}_BuyingGuide.pdf`;
+    doc.save(fileName);
+  };
+
   const filteredCars = cars.filter(
     (car) =>
       (filters.make === "" ||
@@ -383,7 +590,10 @@ const CarListings: React.FC = () => {
 
       {/* Listings */}
       {loading ? (
-        <p className="loading">Loading car listings...</p>
+        <div className="loading-container">
+          <Loader2 className="loading-spinner" size={32} />
+          <p className="loading">Loading car listings...</p>
+        </div>
       ) : filteredCars.length === 0 ? (
         <p className="no-results">No cars match your filters.</p>
       ) : (
@@ -427,6 +637,15 @@ const CarListings: React.FC = () => {
               <X />
             </button>
             
+            {/* PDF Generation Button */}
+            <button 
+              className="pdf-generate-btn"
+              onClick={generatePDF}
+              title="Generate PDF Buying Guide"
+            >
+              <FileText size={20} />
+            </button>
+
             {/* Chat Sidebar Toggle Button */}
             <button 
               className="chat-toggle-btn"

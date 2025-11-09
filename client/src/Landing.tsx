@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { Car, MessageCircle, TrendingUp, ShieldCheck, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase";
 import Navbar from "./Navbar";
 import "./App.css";
 
@@ -20,14 +22,23 @@ const Landing: React.FC = () => {
     e.preventDefault();
     setAuthError("");
     try {
-      if (isSignUp) {
-        await signUp(email, password);
-      } else {
-        await signIn(email, password);
+      const userCredential = isSignUp 
+        ? await signUp(email, password)
+        : await signIn(email, password);
+      
+      // After authentication, check if user has a profile
+      if (userCredential?.user) {
+        const docRef = doc(db, "profiles", userCredential.user.uid);
+        const docSnap = await getDoc(docRef);
+        setShowAuth(false);
+        setEmail("");
+        setPassword("");
+        // If no profile exists, redirect to setup page
+        if (!docSnap.exists()) {
+          navigate("/setup");
+          return;
+        }
       }
-      setShowAuth(false);
-      setEmail("");
-      setPassword("");
     } catch (err: any) {
       setAuthError(err.message || "Authentication failed");
     }
