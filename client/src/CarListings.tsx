@@ -15,6 +15,9 @@ import {
   Star,
   Info,
   History,
+  MessageCircle,
+  Send,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 
 interface Car {
@@ -47,16 +50,32 @@ const fetchListings = async (
   primaryUse: string
 ): Promise<Car[]> => {
   try {
-    const res = await fetch(
-      `http://127.0.0.1:8000/listings/?state=${state}&budget=${budget}&primary_use=${primaryUse}`
-    );
-    if (!res.ok) return [];
+    const url = `http://localhost:8000/listings/?state=${state}&budget=${budget}&primary_use=${primaryUse}`;
+    console.log("🔍 Fetching from:", url);
+    
+    const res = await fetch(url);
+    console.log("📡 Response status:", res.status, res.statusText);
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("❌ Response not OK:", res.status, errorText);
+      return [];
+    }
 
     const data = await res.json();
-    if (!data.listings) return [];
+    console.log("📦 Response data:", data);
+    console.log("📦 Listings keys:", data.listings ? Object.keys(data.listings) : "No listings");
+    
+    if (!data.listings) {
+      console.warn("⚠️ No listings in response");
+      return [];
+    }
 
-    return Object.entries(data.listings).map(
-      ([vin, item]: [string, any], index) => {
+    const entries = Object.entries(data.listings);
+    console.log(`✅ Found ${entries.length} listings to process`);
+    
+    return entries.map(
+      ([_vin, item]: [string, any], index) => {
         const retail = item.retailListing || {};
         const vehicle = item.vehicle || {};
         const ratings = item.ratings || {};
@@ -100,6 +119,9 @@ const fetchListings = async (
     );
   } catch (err) {
     console.error("❌ Fetch failed:", err);
+    if (err instanceof Error) {
+      console.error("❌ Error details:", err.message, err.stack);
+    }
     return [];
   }
 };
@@ -116,6 +138,11 @@ const CarListings: React.FC = () => {
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [currentImage, setCurrentImage] = useState(0);
   const autoSlideRef = useRef<NodeJS.Timeout | null>(null);
+  const [chatMessages, setChatMessages] = useState<Array<{role: string; content: string}>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadCars = async () => {
@@ -142,6 +169,66 @@ const CarListings: React.FC = () => {
       if (autoSlideRef.current) clearInterval(autoSlideRef.current);
     };
   }, [selectedCar]);
+
+  // Reset chat when car changes
+  useEffect(() => {
+    if (selectedCar) {
+      setChatMessages([]);
+      setChatInput("");
+      setChatSidebarOpen(false); // Close sidebar when switching cars
+    }
+  }, [selectedCar]);
+
+  // Scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages]);
+
+  const sendChatMessage = async () => {
+    if (!selectedCar || !chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput("");
+    setChatLoading(true);
+
+    // Add user message to chat
+    const newMessages = [...chatMessages, { role: "user", content: userMessage }];
+    setChatMessages(newMessages);
+
+    try {
+      const response = await fetch("http://localhost:8000/listings/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          car: selectedCar,
+          messageHistory: newMessages,
+          message: userMessage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response");
+      }
+
+      const data = await response.json();
+      setChatMessages(data.messageHistory || newMessages);
+    } catch (error) {
+      console.error("Chat error:", error);
+      setChatMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content: "Sorry, I'm having trouble connecting. Please try again.",
+        },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   const filteredCars = cars.filter(
     (car) =>
@@ -222,68 +309,78 @@ const CarListings: React.FC = () => {
           className="modal-overlay"
           onClick={() => setSelectedCar(null)}
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className={`modal ${chatSidebarOpen ? "chat-sidebar-open" : ""}`} onClick={(e) => e.stopPropagation()}>
             <button className="close-btn" onClick={() => setSelectedCar(null)}>
               <X />
             </button>
+            
+            {/* Chat Sidebar Toggle Button */}
+            <button 
+              className="chat-toggle-btn"
+              onClick={() => setChatSidebarOpen(!chatSidebarOpen)}
+              title={chatSidebarOpen ? "Close chat" : "Open chat"}
+            >
+              {chatSidebarOpen ? <ChevronRightIcon size={20} /> : <MessageCircle size={20} />}
+            </button>
 
-            {/* Carousel */}
-            <div className="image-carousel-container">
-              <div
-                className="image-carousel"
-                style={{
-                  transform: `translateX(-${currentImage * 100}%)`,
-                }}
-              >
-                {selectedCar.images.map((img, i) => (
-                  <img
-                    key={i}
-                    src={img}
-                    alt={`${selectedCar.make}-${i}`}
-                    className="carousel-image"
-                  />
-                ))}
+            {/* Main Content */}
+            <div className="modal-main-content">
+              {/* Carousel */}
+              <div className="image-carousel-container">
+                <div
+                  className="image-carousel"
+                  style={{
+                    transform: `translateX(-${currentImage * 100}%)`,
+                  }}
+                >
+                  {selectedCar.images.map((img, i) => (
+                    <img
+                      key={i}
+                      src={img}
+                      alt={`${selectedCar.make}-${i}`}
+                      className="carousel-image"
+                    />
+                  ))}
+                </div>
+
+                <button
+                  className="carousel-btn carousel-btn-left"
+                  onClick={() =>
+                    setCurrentImage(
+                      currentImage === 0
+                        ? selectedCar.images.length - 1
+                        : currentImage - 1
+                    )
+                  }
+                >
+                  <ChevronLeft />
+                </button>
+                <button
+                  className="carousel-btn carousel-btn-right"
+                  onClick={() =>
+                    setCurrentImage(
+                      (currentImage + 1) % selectedCar.images.length
+                    )
+                  }
+                >
+                  <ChevronRight />
+                </button>
+
+                <div className="carousel-indicators">
+                  {selectedCar.images.map((_, i) => (
+                    <button
+                      key={i}
+                      className={`indicator ${
+                        currentImage === i ? "active" : ""
+                      }`}
+                      onClick={() => setCurrentImage(i)}
+                    />
+                  ))}
+                </div>
               </div>
-
-              <button
-                className="carousel-btn carousel-btn-left"
-                onClick={() =>
-                  setCurrentImage(
-                    currentImage === 0
-                      ? selectedCar.images.length - 1
-                      : currentImage - 1
-                  )
-                }
-              >
-                <ChevronLeft />
-              </button>
-              <button
-                className="carousel-btn carousel-btn-right"
-                onClick={() =>
-                  setCurrentImage(
-                    (currentImage + 1) % selectedCar.images.length
-                  )
-                }
-              >
-                <ChevronRight />
-              </button>
-
-              <div className="carousel-indicators">
-                {selectedCar.images.map((_, i) => (
-                  <button
-                    key={i}
-                    className={`indicator ${
-                      currentImage === i ? "active" : ""
-                    }`}
-                    onClick={() => setCurrentImage(i)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Info Section */}
-            <div className="modal-columns">
-              <div className="car-details">
+              {/* Info Section */}
+              <div className="modal-columns">
+                <div className="car-details">
                 <h2>
                   {selectedCar.year} {selectedCar.make} {selectedCar.model}
                 </h2>
@@ -350,7 +447,7 @@ const CarListings: React.FC = () => {
                     </ul>
                   </div>
                 )}
-              </div>
+                </div>
 
               {/* Ratings & Insights */}
               <div className="car-ratings">
@@ -401,6 +498,78 @@ const CarListings: React.FC = () => {
                     <Shield size={14} /> Insurance Estimate: $
                     {selectedCar.insuranceEstimate.toLocaleString()}/yr
                   </p>
+                </div>
+              </div>
+              </div>
+            </div>
+
+            {/* AI Chat Sidebar */}
+            <div className={`chat-sidebar ${chatSidebarOpen ? "open" : ""}`}>
+              <div className="chat-sidebar-header">
+                <h3>
+                  <MessageCircle size={18} /> Ask AI About This Car
+                </h3>
+                <button 
+                  className="chat-sidebar-close"
+                  onClick={() => setChatSidebarOpen(false)}
+                  title="Close chat"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="chat-sidebar-content">
+                <div className="chat-messages">
+                  {chatMessages.length === 0 ? (
+                    <div className="chat-placeholder">
+                      <MessageCircle size={32} />
+                      <p>Start a conversation about this car!</p>
+                      <p className="chat-suggestions">
+                        Try asking: "Is this a good deal?" or "What should I know about this car?"
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`chat-message ${
+                          msg.role === "user" ? "user-message" : "ai-message"
+                        }`}
+                      >
+                        <div className="message-content">{msg.content}</div>
+                      </div>
+                    ))
+                  )}
+                  {chatLoading && (
+                    <div className="chat-message ai-message">
+                      <div className="message-content">
+                        <span className="typing-indicator">AI is thinking...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="chat-input-container">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    placeholder="Ask about this car..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendChatMessage();
+                      }
+                    }}
+                    disabled={chatLoading}
+                  />
+                  <button
+                    className="chat-send-btn"
+                    onClick={sendChatMessage}
+                    disabled={chatLoading || !chatInput.trim()}
+                  >
+                    <Send size={18} />
+                  </button>
                 </div>
               </div>
             </div>
